@@ -15,3 +15,13 @@ node_modules/
 .env.*.local
 *.key
 *.pem
+
+# Credentials - KHÔNG commit
+**/credentials/service-account.json
+**/credentials/*.json
+!**/credentials/README.md
+!**/credentials/.gitkeep
+
+# Data mẫu - không cần sync
+**/docs/*.xlsx
+**/docs/*.csv
