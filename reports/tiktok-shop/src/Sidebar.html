@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Google Sans', Arial, sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      font-size: 13px;
+      height: 100vh;
+      overflow-y: auto;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #161b22, #1f2937);
+      padding: 16px;
+      border-bottom: 1px solid #30363d;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .header-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, #fe2c55, #ff6b9d);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .header-text h2 {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .header-text p {
+      font-size: 11px;
+      color: #8b949e;
+      margin-top: 2px;
+    }
+
+    .tabs {
+      display: flex;
+      background: #161b22;
+      border-bottom: 1px solid #30363d;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 10px 0;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 500;
+      color: #8b949e;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .tab.active {
+      color: #fe2c55;
+      border-bottom-color: #fe2c55;
+    }
+
+    .tab:hover:not(.active) {
+      color: #e6edf3;
+    }
+
+    .tab-content {
+      display: none;
+      padding: 16px;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .section {
+      margin-bottom: 18px;
+    }
+
+    .section-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #8b949e;
+      margin-bottom: 8px;
+    }
+
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      margin-bottom: 14px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #30363d;
+      flex-shrink: 0;
+    }
+
+    .status-dot.ok {
+      background: #3fb950;
+    }
+
+    .status-dot.error {
+      background: #f85149;
+    }
+
+    .status-text {
+      font-size: 12px;
+      color: #8b949e;
+      flex: 1;
+    }
+
+    .status-text.ok {
+      color: #3fb950;
+    }
+
+    .status-text.error {
+      color: #f85149;
+    }
+
+    .date-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .date-row label {
+      font-size: 11px;
+      color: #8b949e;
+      white-space: nowrap;
+    }
+
+    input[type="date"],
+    input[type="text"],
+    select {
+      width: 100%;
+      padding: 8px 10px;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      color: #e6edf3;
+      font-size: 12px;
+      outline: none;
+      transition: border-color 0.2s;
+      font-family: inherit;
+    }
+
+    input[type="date"]:focus,
+    input[type="text"]:focus,
+    select:focus {
+      border-color: #fe2c55;
+    }
+
+    select option {
+      background: #161b22;
+    }
+
+    .quick-dates {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-bottom: 4px;
+    }
+
+    .qd-btn {
+      padding: 5px 10px;
+      border-radius: 14px;
+      border: 1px solid #30363d;
+      background: transparent;
+      color: #8b949e;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .qd-btn:hover,
+    .qd-btn.active {
+      border-color: #fe2c55;
+      color: #fe2c55;
+      background: rgba(254, 44, 85, 0.08);
+    }
+
+    /* ---- FIELD CHECKBOXES ---- */
+    .field-groups {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .field-group {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .field-group-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      cursor: pointer;
+      user-select: none;
+      border-bottom: 1px solid #30363d;
+    }
+
+    .field-group-header:hover {
+      background: #1f2937;
+    }
+
+    .field-group-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: #c9d1d9;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .group-badge {
+      font-size: 10px;
+      background: rgba(254, 44, 85, 0.15);
+      color: #fe2c55;
+      padding: 1px 6px;
+      border-radius: 10px;
+    }
+
+    .collapse-icon {
+      font-size: 10px;
+      color: #8b949e;
+      transition: transform 0.2s;
+    }
+
+    .field-group.collapsed .collapse-icon {
+      transform: rotate(-90deg);
+    }
+
+    .field-group.collapsed .field-grid {
+      display: none;
+    }
+
+    .field-grid {
+      padding: 6px 8px 8px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 2px;
+    }
+
+    .field-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 6px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background 0.15s;
+      user-select: none;
+    }
+
+    .field-item:hover {
+      background: #21262d;
+    }
+
+    .field-item input[type="checkbox"] {
+      width: 13px;
+      height: 13px;
+      accent-color: #fe2c55;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .field-label {
+      font-size: 11.5px;
+      color: #c9d1d9;
+    }
+
+    .field-key {
+      font-size: 10px;
+      color: #8b949e;
+      font-family: monospace;
+      margin-left: auto;
+      padding-left: 8px;
+    }
+
+    .select-all-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .link-btn {
+      font-size: 11px;
+      color: #58a6ff;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0;
+    }
+
+    .link-btn:hover {
+      text-decoration: underline;
+    }
+
+    .sheet-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .sheet-row select {
+      flex: 1;
+    }
+
+    .new-sheet-input {
+      margin-top: 6px;
+      display: none;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
+    }
+
+    .toggle {
+      position: relative;
+      width: 34px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+
+    .toggle input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #30363d;
+      border-radius: 18px;
+      transition: 0.2s;
+      cursor: pointer;
+    }
+
+    .toggle-slider::before {
+      content: '';
+      position: absolute;
+      height: 12px;
+      width: 12px;
+      left: 3px;
+      bottom: 3px;
+      background: #8b949e;
+      border-radius: 50%;
+      transition: 0.2s;
+    }
+
+    input:checked+.toggle-slider {
+      background: #238636;
+    }
+
+    input:checked+.toggle-slider::before {
+      transform: translateX(16px);
+      background: #fff;
+    }
+
+    .toggle-label {
+      font-size: 12px;
+      color: #c9d1d9;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 11px;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-family: inherit;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #fe2c55, #ff6b9d);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-secondary {
+      background: #21262d;
+      border: 1px solid #30363d;
+      color: #c9d1d9;
+      margin-bottom: 8px;
+    }
+
+    .btn-secondary:hover {
+      background: #2d333b;
+      color: #e6edf3;
+    }
+
+    .progress-wrap {
+      display: none;
+      margin-top: 12px;
+    }
+
+    .progress-wrap.show {
+      display: block;
+    }
+
+    .progress-bar-bg {
+      height: 4px;
+      background: #30363d;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 6px;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #fe2c55, #ff6b9d);
+      border-radius: 4px;
+      width: 0%;
+      transition: width 0.4s ease;
+      animation: pulse-bar 1.5s infinite;
+    }
+
+    @keyframes pulse-bar {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.7;
+      }
+    }
+
+    .progress-text {
+      font-size: 11px;
+      color: #8b949e;
+      text-align: center;
+    }
+
+    .result-box {
+      display: none;
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .result-box.success {
+      background: rgba(63, 185, 80, 0.1);
+      border: 1px solid rgba(63, 185, 80, 0.3);
+      color: #3fb950;
+    }
+
+    .result-box.error {
+      background: rgba(248, 81, 73, 0.1);
+      border: 1px solid rgba(248, 81, 73, 0.3);
+      color: #f85149;
+    }
+
+    .result-box.show {
+      display: block;
+    }
+
+    .test-output {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 11.5px;
+      line-height: 1.8;
+      color: #c9d1d9;
+      white-space: pre-wrap;
+      word-break: break-all;
+      min-height: 120px;
+      font-family: monospace;
+    }
+
+    .info-note {
+      font-size: 11px;
+      color: #8b949e;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 8px 10px;
+      margin-bottom: 12px;
+      line-height: 1.6;
+    }
+
+    .info-note b {
+      color: #c9d1d9;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid #30363d;
+      margin: 14px 0;
+    }
+
+    ::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #30363d;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="header">
+    <div class="header-icon">T</div>
+    <div class="header-text">
+      <h2>Trioderma</h2>
+      <p>Booking Manager · Lăng Tiêu</p>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('pull', this)">📦 Kéo dữ liệu</div>
+    <div class="tab" onclick="switchTab('test', this)">🧪 Kết nối</div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- TAB: KÉO DỮ LIỆU -->
+  <!-- ============================================================ -->
+  <div class="tab-content active" id="tab-pull">
+
+    <div class="status-bar" id="statusBar">
+      <div class="status-dot" id="statusDot"></div>
+      <div class="status-text" id="statusText">Đang kiểm tra...</div>
+    </div>
+
+    <!-- THỜI GIAN -->
+    <div class="section">
+      <div class="section-label">Khoảng thời gian</div>
+      <div class="quick-dates">
+        <button class="qd-btn" onclick="setQuickDate(7,this)">7 ngày</button>
+        <button class="qd-btn active" onclick="setQuickDate(14,this)">14 ngày</button>
+        <button class="qd-btn" onclick="setQuickDate(30,this)">30 ngày</button>
+        <button class="qd-btn" onclick="setQuickDate(60,this)">60 ngày</button>
+        <button class="qd-btn" onclick="setQuickDate(90,this)">90 ngày</button>
+        <button class="qd-btn" onclick="setThisMonth(this)">Tháng này</button>
+        <button class="qd-btn" onclick="setLastMonth(this)">Tháng trước</button>
+      </div>
+      <div class="date-row">
+        <label>Từ</label>
+        <input type="date" id="dateFrom">
+        <label>Đến</label>
+        <input type="date" id="dateTo">
+      </div>
+    </div>
+
+    <hr>
+
+    <!-- TRƯỜNG DỮ LIỆU -->
+    <div class="section">
+      <div class="section-label">Trường dữ liệu</div>
+      <div class="select-all-row">
+        <button class="link-btn" onclick="selectAllFields()">Chọn tất cả</button>
+        <button class="link-btn" onclick="clearAllFields()">Bỏ chọn</button>
+      </div>
+
+      <div class="field-groups" id="fieldGroups"></div>
+    </div>
+
+    <hr>
+
+    <!-- SHEET ĐÍCH -->
+    <div class="section">
+      <div class="section-label">Sheet đích</div>
+      <div class="sheet-row">
+        <select id="sheetSelect" onchange="onSheetSelectChange()">
+          <option value="__new__">+ Tạo sheet mới</option>
+        </select>
+      </div>
+      <div class="new-sheet-input" id="newSheetWrap">
+        <input type="text" id="newSheetName" placeholder="Tên sheet mới...">
+      </div>
+      <div class="toggle-row" style="margin-top:10px">
+        <label class="toggle">
+          <input type="checkbox" id="overwriteToggle" checked>
+          <span class="toggle-slider"></span>
+        </label>
+        <span class="toggle-label">Ghi đè dữ liệu cũ</span>
+      </div>
+    </div>
+
+    <button class="btn btn-secondary" onclick="pullProducts()" id="prodBtn">📦 Kéo sản phẩm</button>
+    <button class="btn btn-primary" id="runBtn" onclick="runPull()">▶ Chạy báo cáo</button>
+
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" id="progressBar"></div>
+      </div>
+      <div class="progress-text" id="progressText">Đang kéo dữ liệu...</div>
+    </div>
+
+    <div class="result-box" id="resultBox"></div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- TAB: TEST KẾT NỐI -->
+  <!-- ============================================================ -->
+  <div class="tab-content" id="tab-test">
+    <button class="btn btn-secondary" onclick="runTest()">🧪 Chạy test kết nối</button>
+    <div class="test-output" id="testOutput">Nhấn "Chạy test kết nối" để kiểm tra...</div>
+    <hr>
+    <div style="font-size:11px;color:#8b949e;line-height:1.6">
+      <b style="color:#c9d1d9">Cấu hình token:</b><br>
+      Vào menu <b style="color:#e6edf3">🛍️ TikTok Shop → 🔑 Nhập Token & Config</b><br>
+      để nhập App Key, App Secret, Shop Cipher, Access Token, Refresh Token.
+    </div>
+  </div>
+
+  <script>
+    // ============================================================
+    // CẤU TRÚC FIELD GROUPS — khớp với ALL_FIELDS trong Code.gs
+    // ============================================================
+    const FIELD_GROUPS = [
+      {
+        title: 'Đơn hàng', icon: '📋',
+        fields: [
+          { key: 'id', label: 'Order ID' },
+          { key: 'status', label: 'Trạng thái đơn' },
+          { key: 'cancel_reason', label: 'Lý do hủy' },
+          { key: 'create_time', label: 'Ngày tạo' },
+          { key: 'update_time', label: 'Ngày cập nhật' },
+          { key: 'order_type', label: 'Loại đơn' },
+          { key: 'fulfillment_type', label: 'Fulfillment type' },
+          { key: 'delivery_option_name', label: 'Phương thức giao' },
+          { key: 'delivery_type', label: 'Loại giao hàng' },
+          { key: 'shipping_provider', label: 'Nhà vận chuyển' },
+          { key: 'tracking_number_order', label: 'Mã vận đơn (đơn)' },
+          { key: 'payment_method_name', label: 'PTTT' },
+          { key: 'user_id', label: 'User ID' },
+        ]
+      },
+      {
+        title: 'Người nhận', icon: '👤',
+        fields: [
+          { key: 'recipient_name', label: 'Tên người nhận' },
+          { key: 'recipient_phone', label: 'SĐT người nhận' },
+          { key: 'recipient_full_address', label: 'Địa chỉ đầy đủ' },
+        ]
+      },
+      {
+        title: 'Thanh toán', icon: '💰',
+        fields: [
+          { key: 'original_total_product_price', label: 'Giá gốc SP (đơn)' },
+          { key: 'platform_discount', label: 'CK Platform (đơn)' },
+          { key: 'seller_discount', label: 'CK Seller (đơn)' },
+          { key: 'sub_total', label: 'Tạm tính' },
+          { key: 'original_shipping_fee', label: 'Phí ship gốc' },
+          { key: 'shipping_fee', label: 'Phí ship thực' },
+          { key: 'shipping_fee_platform_discount', label: 'CK ship platform' },
+          { key: 'shipping_fee_seller_discount', label: 'CK ship seller' },
+          { key: 'shipping_fee_cofunded_discount', label: 'CK ship cofund' },
+          { key: 'tax', label: 'Thuế' },
+          { key: 'total_amount', label: 'Tổng thanh toán' },
+        ]
+      },
+      {
+        title: 'Sản phẩm (line item)', icon: '📦',
+        fields: [
+          { key: 'line_item_id', label: 'Line Item ID' },
+          { key: 'product_id', label: 'Product ID' },
+          { key: 'product_name', label: 'Tên sản phẩm' },
+          { key: 'sku_id', label: 'SKU ID' },
+          { key: 'sku_name', label: 'Tên SKU' },
+          { key: 'seller_sku', label: 'Seller SKU' },
+          { key: 'sku_type', label: 'SKU Type' },
+          { key: 'is_gift', label: 'Là quà tặng' },
+          { key: 'gift_retail_price', label: 'Giá trị quà' },
+          { key: 'original_price', label: 'Giá gốc item' },
+          { key: 'sale_price', label: 'Giá bán item' },
+          { key: 'item_platform_discount', label: 'CK platform item' },
+          { key: 'item_seller_discount', label: 'CK seller item' },
+          { key: 'item_display_status', label: 'Trạng thái item' },
+          { key: 'item_package_id', label: 'Package ID (item)' },
+          { key: 'package_status', label: 'Trạng thái package' },
+          { key: 'item_tracking_number', label: 'Mã vận đơn (item)' },
+          { key: 'shipping_provider_name', label: 'Nhà VC (item)' },
+        ]
+      }
+    ];
+
+    // ---- BUILD FIELD UI ----
+    function buildFieldGroups() {
+      const container = document.getElementById('fieldGroups');
+      container.innerHTML = '';
+
+      FIELD_GROUPS.forEach((group, gi) => {
+        const groupEl = document.createElement('div');
+        groupEl.className = 'field-group';
+        groupEl.dataset.gi = gi;
+
+        const header = document.createElement('div');
+        header.className = 'field-group-header';
+        header.innerHTML = `
+      <div class="field-group-title">
+        <span>${group.icon}</span>
+        <span>${group.title}</span>
+        <span class="group-badge">${group.fields.length}</span>
+      </div>
+      <span class="collapse-icon">▾</span>
+    `;
+        header.onclick = () => groupEl.classList.toggle('collapsed');
+
+        const grid = document.createElement('div');
+        grid.className = 'field-grid';
+
+        group.fields.forEach(f => {
+          const label = document.createElement('label');
+          label.className = 'field-item';
+          label.innerHTML = `
+        <input type="checkbox" value="${f.key}" checked>
+        <span class="field-label">${f.label}</span>
+        <span class="field-key">${f.key}</span>
+      `;
+          grid.appendChild(label);
+        });
+
+        groupEl.appendChild(header);
+        groupEl.appendChild(grid);
+        container.appendChild(groupEl);
+      });
+    }
+
+    function selectAllFields() {
+      document.querySelectorAll('#fieldGroups input[type="checkbox"]').forEach(cb => cb.checked = true);
+    }
+    function clearAllFields() {
+      document.querySelectorAll('#fieldGroups input[type="checkbox"]').forEach(cb => cb.checked = false);
+    }
+
+    // ---- INIT ----
+    document.addEventListener('DOMContentLoaded', () => {
+      buildFieldGroups();
+      setQuickDate(14, document.querySelector('.qd-btn.active'));
+      loadSheets();
+      checkStatus();
+    });
+
+    // ---- TABS ----
+    function switchTab(name, el) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      el.classList.add('active');
+      document.getElementById('tab-' + name).classList.add('active');
+    }
+
+    // ---- STATUS ----
+    function checkStatus() {
+      google.script.run
+        .withSuccessHandler(txt => {
+          const ok = txt.includes('✅ Kết nối OK');
+          document.getElementById('statusDot').className = 'status-dot ' + (ok ? 'ok' : 'error');
+          document.getElementById('statusText').className = 'status-text ' + (ok ? 'ok' : 'error');
+          document.getElementById('statusText').textContent = ok ? 'Đã kết nối · TikTok Shop' : 'Chưa kết nối — kiểm tra tab Kết nối';
+        })
+        .withFailureHandler(() => {
+          document.getElementById('statusDot').className = 'status-dot error';
+          document.getElementById('statusText').className = 'status-text error';
+          document.getElementById('statusText').textContent = 'Lỗi kiểm tra kết nối';
+        })
+        .testKetNoi();
+    }
+
+    // ---- LOAD SHEETS ----
+    function loadSheets() {
+      google.script.run
+        .withSuccessHandler(names => {
+          const sel = document.getElementById('sheetSelect');
+          sel.innerHTML = '<option value="__new__">+ Tạo sheet mới</option>';
+          names.forEach(n => {
+            const opt = document.createElement('option');
+            opt.value = opt.textContent = n;
+            sel.appendChild(opt);
+          });
+        })
+        .getSheetNames();
+    }
+
+    function onSheetSelectChange() {
+      const isNew = document.getElementById('sheetSelect').value === '__new__';
+      document.getElementById('newSheetWrap').style.display = isNew ? 'block' : 'none';
+    }
+
+    // ---- QUICK DATES ----
+    function setQuickDate(days, btn) {
+      document.querySelectorAll('.qd-btn').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      const to = new Date();
+      const from = new Date(Date.now() - (days - 1) * 86400000);
+      document.getElementById('dateFrom').value = fmtDate(from);
+      document.getElementById('dateTo').value = fmtDate(to);
+    }
+    function setThisMonth(btn) {
+      document.querySelectorAll('.qd-btn').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      const now = new Date();
+      document.getElementById('dateFrom').value = fmtDate(new Date(now.getFullYear(), now.getMonth(), 1));
+      document.getElementById('dateTo').value = fmtDate(now);
+    }
+    function setLastMonth(btn) {
+      document.querySelectorAll('.qd-btn').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      const now = new Date();
+      const first = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const last = new Date(now.getFullYear(), now.getMonth(), 0);
+      document.getElementById('dateFrom').value = fmtDate(first);
+      document.getElementById('dateTo').value = fmtDate(last);
+    }
+
+    // ---- RUN PULL ----
+    function runPull() {
+      const dateFrom = document.getElementById('dateFrom').value;
+      const dateTo = document.getElementById('dateTo').value;
+      if (!dateFrom || !dateTo) { showResult('Vui lòng chọn khoảng thời gian.', false); return; }
+
+      const fields = [];
+      document.querySelectorAll('#fieldGroups input[type="checkbox"]:checked').forEach(cb => fields.push(cb.value));
+      if (fields.length === 0) { showResult('Vui lòng chọn ít nhất 1 trường dữ liệu.', false); return; }
+
+      const sel = document.getElementById('sheetSelect');
+      let sheetName = sel.value;
+      if (sheetName === '__new__') {
+        sheetName = document.getElementById('newSheetName').value.trim() || 'Orders';
+      }
+      const overwrite = document.getElementById('overwriteToggle').checked;
+
+      const btn = document.getElementById('runBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<span style="opacity:0.7">⏳ Đang kéo dữ liệu...</span>';
+      document.getElementById('progressWrap').classList.add('show');
+      document.getElementById('progressBar').style.width = '20%';
+      document.getElementById('progressText').textContent = 'Đang tìm đơn hàng...';
+      document.getElementById('resultBox').className = 'result-box';
+
+      let pct = 20;
+      const timer = setInterval(() => {
+        pct = Math.min(pct + 4, 85);
+        document.getElementById('progressBar').style.width = pct + '%';
+        if (pct > 40) document.getElementById('progressText').textContent = 'Đang xử lý line items...';
+        if (pct > 70) document.getElementById('progressText').textContent = 'Đang ghi vào Sheet...';
+      }, 1200);
+
+      google.script.run
+        .withSuccessHandler(result => {
+          clearInterval(timer);
+          document.getElementById('progressBar').style.width = '100%';
+          setTimeout(() => {
+            document.getElementById('progressWrap').classList.remove('show');
+            btn.disabled = false;
+            btn.innerHTML = '▶ Chạy báo cáo';
+            showResult(result.message, result.success);
+            if (result.success) loadSheets();
+          }, 500);
+        })
+        .withFailureHandler(err => {
+          clearInterval(timer);
+          document.getElementById('progressWrap').classList.remove('show');
+          btn.disabled = false;
+          btn.innerHTML = '▶ Chạy báo cáo';
+          showResult('Lỗi: ' + err.message, false);
+        })
+        .runPullOrders({ dateFrom, dateTo, fields, sheetName, overwrite });
+    }
+
+    // ---- TEST ----
+    function runTest() {
+      document.getElementById('testOutput').textContent = 'Đang kiểm tra...';
+      google.script.run
+        .withSuccessHandler(txt => { document.getElementById('testOutput').textContent = txt; checkStatus(); })
+        .withFailureHandler(err => { document.getElementById('testOutput').textContent = '❌ Lỗi: ' + err.message; })
+        .ui_test();
+    }
+
+    // ---- PULL PRODUCTS ----
+    function pullProducts() {
+      const btn = document.getElementById('prodBtn');
+      btn.disabled = true;
+      btn.textContent = '⏳ Đang kéo sản phẩm...';
+      google.script.run
+        .withSuccessHandler(r => {
+          btn.disabled = false; btn.textContent = '📦 Kéo sản phẩm';
+          showResult(r.message, r.success);
+          if (r.success) loadSheets();
+        })
+        .withFailureHandler(e => {
+          btn.disabled = false; btn.textContent = '📦 Kéo sản phẩm';
+          showResult('Lỗi: ' + e.message, false);
+        })
+        .sidebarPullProducts('Products');
+    }
+
+    // ---- HELPERS ----
+    function showResult(msg, success) {
+      const el = document.getElementById('resultBox');
+      el.textContent = msg;
+      el.className = 'result-box show ' + (success ? 'success' : 'error');
+    }
+    function fmtDate(d) {
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+  </script>
+</body>
+
+</html>
