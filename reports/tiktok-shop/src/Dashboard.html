@@ -2844,7 +2844,7 @@
           renderDashboard();
         })
         .withFailureHandler(e => console.error('Load orders failed:', e))
-        .bqGetOrdersForDashboard();
+        .loadOrdersForDashboard();
 
       google.script.run
         .withSuccessHandler(products => {

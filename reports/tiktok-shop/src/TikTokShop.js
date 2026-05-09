@@ -702,77 +702,139 @@ function bqMigrateAll() {
   return 'ℹ️ Không có đơn để migrate.';
 }
 
+function parseBqProvince(addr) {
+  if (!addr) return '';
+  const parts = addr.split(',').map(s => s.trim()).filter(s => s);
+  // Bỏ qua "Việt Nam" / "Vietnam" ở đầu
+  const filtered = parts.filter(p => !/^vi[eệ]t\s*nam$/i.test(p));
+  if (!filtered.length) return '';
+  // Ưu tiên phần có "Thành phố" hoặc "Tỉnh"
+  const explicit = filtered.find(p => p.indexOf('Thành phố') !== -1 || p.indexOf('Tỉnh') !== -1 || p.indexOf('Tp.') !== -1 || p.indexOf('TP.') !== -1);
+  if (explicit) return explicit;
+  // Format "Việt Nam, [Tỉnh/TP], ..." → lấy phần tử đầu tiên còn lại
+  const raw = filtered[0];
+  // Normalize một số tên phổ biến không có prefix
+  const normalize = { 'Hồ Chí Minh': 'Thành phố Hồ Chí Minh', 'Hà Nội': 'Thành phố Hà Nội', 'Đà Nẵng': 'Thành phố Đà Nẵng', 'Cần Thơ': 'Thành phố Cần Thơ', 'Hải Phòng': 'Thành phố Hải Phòng' };
+  return normalize[raw] || raw;
+}
+
 function bqGetOrdersForDashboard() {
   const BQ_CONFIG = getBQConfig();
   const pId = BQ_CONFIG.PROJECT_ID;
   if (!pId) return [];
-  // Sử dụng UNIX_SECONDS để BigQuery tự chuyển đổi ngày tháng sang số cho chắc chắn
   const query = `
-    SELECT 
-      *,
+    SELECT
+      order_id, status, cancel_reason,
       UNIX_SECONDS(create_time) as create_ts,
       UNIX_SECONDS(update_time) as update_ts,
-      UNIX_SECONDS(sync_time) as sync_ts
+      order_type, fulfillment_type, shipping_provider, tracking_number,
+      payment_method, user_id, recipient_name, recipient_city, recipient_address,
+      total_amount, sub_total, shipping_fee, platform_discount, seller_discount,
+      sku_id, sku_name, product_name, quantity, sale_price, item_discount
     FROM (
       SELECT *, ROW_NUMBER() OVER(PARTITION BY order_id, sku_id ORDER BY update_time DESC, sync_time DESC) as row_num
       FROM \`${pId}.${BQ_CONFIG.DATASET_ID}.${BQ_CONFIG.TABLE_ID}\`
     )
     WHERE row_num = 1
-    ORDER BY create_time DESC
-    LIMIT 100000
+    ORDER BY create_ts DESC
+    LIMIT 50000
   `;
   try {
-    const res = BigQuery.Jobs.query({ query: query, useLegacySql: false }, pId);
-    if (!res.rows) return [];
+    const token = ScriptApp.getOAuthToken();
+    const baseUrl = 'https://bigquery.googleapis.com/bigquery/v2/projects/' + pId;
+    const headers = { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' };
+
+    // Submit job
+    const jobRes = UrlFetchApp.fetch(baseUrl + '/jobs', {
+      method: 'post', headers: headers,
+      payload: JSON.stringify({ configuration: { query: { query: query, useLegacySql: false } } }),
+      muteHttpExceptions: true
+    });
+    const job = JSON.parse(jobRes.getContentText());
+    if (!job.jobReference) { Logger.log('❌ BQ submit error: ' + jobRes.getContentText()); return []; }
+    const jobId = job.jobReference.jobId;
+
+    // Poll cho đến khi done
+    let done = false;
+    for (let i = 0; i < 24; i++) {
+      Utilities.sleep(5000);
+      const statusRes = UrlFetchApp.fetch(baseUrl + '/jobs/' + jobId, { headers: headers, muteHttpExceptions: true });
+      const statusObj = JSON.parse(statusRes.getContentText());
+      if (statusObj.status && statusObj.status.state === 'DONE') { done = true; break; }
+    }
+    if (!done) { Logger.log('❌ BQ job timeout'); return []; }
+
+    // Paginate kết quả
+    const allRows = [];
+    let pageToken = null;
+    let schema = null;
+    do {
+      let url = baseUrl + '/queries/' + jobId + '?maxResults=5000&timeoutMs=10000';
+      if (pageToken) url += '&pageToken=' + pageToken;
+      const pageRes = UrlFetchApp.fetch(url, { headers: headers, muteHttpExceptions: true });
+      const page = JSON.parse(pageRes.getContentText());
+      if (!schema && page.schema) schema = page.schema;
+      if (page.rows) allRows.push(...page.rows);
+      pageToken = page.pageToken || null;
+    } while (pageToken);
+
+    if (!allRows.length || !schema) return [];
+
     const orderMap = {};
-    const fields = res.schema.fields;
+    const fields = schema.fields;
     const colIndex = {};
     fields.forEach((f, i) => colIndex[f.name] = i);
-    res.rows.forEach(row => {
+
+    allRows.forEach(row => {
       const f = row.f;
       const oId = f[colIndex['order_id']].v;
+      if (!oId) return;
+      const cTs = f[colIndex['create_ts']].v || 0;
+      const uTs = f[colIndex['update_ts']].v || cTs;
       if (!orderMap[oId]) {
-        // Lấy timestamp đã convert từ BigQuery, nếu null thì lấy sync_ts làm fallback
-        const cTs = f[colIndex['create_ts']].v || f[colIndex['sync_ts']].v || 0;
-        const uTs = f[colIndex['update_ts']].v || cTs;
-        
         orderMap[oId] = {
-          id: oId, 
-          status: f[colIndex['status']].v, 
+          order_id: oId,
+          status: f[colIndex['status']].v,
           cancel_reason: f[colIndex['cancel_reason']].v,
           create_time: parseInt(cTs),
           update_time: parseInt(uTs),
-          order_type: f[colIndex['order_type']].v, 
+          order_type: f[colIndex['order_type']].v,
           fulfillment_type: f[colIndex['fulfillment_type']].v,
-          shipping_provider: f[colIndex['shipping_provider']].v, 
+          shipping_provider: f[colIndex['shipping_provider']].v,
           tracking_number: f[colIndex['tracking_number']].v,
-          payment_method: f[colIndex['payment_method']].v, 
+          payment_method: f[colIndex['payment_method']].v,
           user_id: f[colIndex['user_id']].v,
-          recipient_address: { 
-            name: f[colIndex['recipient_name']].v, 
-            city: f[colIndex['recipient_city']].v, 
-            full_address: f[colIndex['recipient_address']].v, 
-            district_info: [] 
-          },
-          payment: { 
-            total_amount: f[colIndex['total_amount']].v, 
-            sub_total: f[colIndex['sub_total']].v, 
-            shipping_fee: f[colIndex['shipping_fee']].v, 
-            platform_discount: f[colIndex['platform_discount']].v, 
-            seller_discount: f[colIndex['seller_discount']].v 
+          recipient_address: (function() {
+            const fullAddr = f[colIndex['recipient_address']].v || '';
+            const city = f[colIndex['recipient_city']].v || '';
+            const province = parseBqProvince(fullAddr) || city;
+            return {
+              name: f[colIndex['recipient_name']].v,
+              city: province,
+              full_address: fullAddr,
+              district_info: province ? [{ address_level_name: 'province', address_name: province }] : []
+            };
+          })(),
+          payment: {
+            total_amount: f[colIndex['total_amount']].v,
+            sub_total: f[colIndex['sub_total']].v,
+            shipping_fee: f[colIndex['shipping_fee']].v,
+            platform_discount: f[colIndex['platform_discount']].v,
+            seller_discount: f[colIndex['seller_discount']].v
           },
           line_items: []
         };
       }
       orderMap[oId].line_items.push({
-        sku_id: f[colIndex['sku_id']].v, 
-        sku_name: f[colIndex['sku_name']].v, 
+        sku_id: f[colIndex['sku_id']].v,
+        sku_name: f[colIndex['sku_name']].v,
         product_name: f[colIndex['product_name']].v,
-        quantity: f[colIndex['quantity']].v, 
-        sale_price: f[colIndex['sale_price']].v, 
+        quantity: f[colIndex['quantity']].v,
+        sale_price: f[colIndex['sale_price']].v,
         item_discount: f[colIndex['item_discount']].v
       });
     });
+    Logger.log('✅ BQ loaded: ' + allRows.length + ' rows → ' + Object.keys(orderMap).length + ' orders');
     return Object.values(orderMap);
   } catch (e) {
     Logger.log('❌ BQ Query Error: ' + e.message);
@@ -780,10 +842,46 @@ function bqGetOrdersForDashboard() {
   }
 }
 
+// Wrapper: thử BQ trước, nếu rỗng hoặc lỗi thì fallback về Sheet
+function loadOrdersForDashboard() {
+  try {
+    const bqData = bqGetOrdersForDashboard();
+    if (bqData && bqData.length > 0) {
+      Logger.log('✅ Dashboard data from BQ: ' + bqData.length + ' orders');
+      return bqData;
+    }
+  } catch (e) {
+    Logger.log('⚠️ BQ failed, falling back to Sheet: ' + e.message);
+  }
+  Logger.log('📊 Dashboard data from Sheet (fallback)');
+  return loadAllOrders();
+}
+
 function bqTestQuery() {
   const data = bqGetOrdersForDashboard();
   Logger.log('🧪 Test result: ' + data.length + ' orders found.');
   if (data.length > 0) Logger.log('📋 First order sample: ' + JSON.stringify(data[0]));
+}
+
+function bqDebug() {
+  const cfg = getBQConfig();
+  Logger.log('📋 BQ Config: ' + JSON.stringify(cfg));
+  if (!cfg.PROJECT_ID) { Logger.log('❌ PROJECT_ID trống'); return; }
+  const pId = cfg.PROJECT_ID;
+  const tbl = '`' + pId + '.' + cfg.DATASET_ID + '.' + cfg.TABLE_ID + '`';
+  try {
+    const res = BigQuery.Jobs.query({
+      query: `SELECT order_id, status, create_time, UNIX_SECONDS(create_time) as create_ts, total_amount FROM (SELECT *, ROW_NUMBER() OVER(PARTITION BY order_id, sku_id ORDER BY update_time DESC) as rn FROM ${tbl}) WHERE rn = 1 LIMIT 5`,
+      useLegacySql: false,
+      timeoutMs: 30000
+    }, pId);
+    Logger.log('✅ jobComplete: ' + res.jobComplete);
+    Logger.log('📊 Row count: ' + (res.rows ? res.rows.length : 'null'));
+    if (res.rows && res.rows.length > 0) Logger.log('📋 Sample: ' + JSON.stringify(res.rows[0]));
+    if (!res.rows) Logger.log('⚠️ res.rows is null/undefined — schema: ' + JSON.stringify(res.schema));
+  } catch(e) {
+    Logger.log('❌ BQ Error: ' + e.message);
+  }
 }
 
 function setup_BQ_Config() {
