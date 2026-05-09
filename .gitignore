@@ -1,0 +1,17 @@
+# Claude Code - file cá nhân, không đồng bộ
+CLAUDE.local.md
+.claude/settings.local.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules/
+
+# Env & secrets
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
